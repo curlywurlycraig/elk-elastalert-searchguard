@@ -1,0 +1,90 @@
+version: "2"
+services:
+
+  elasticsearch:
+    build: elasticsearch/
+    labels:
+      role: admin
+      io.rancher.scheduler.affinity:host_label: role=admin
+    ports:
+      - "9200"
+      - "9300"
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data/
+      - es-config:/usr/share/elasticsearch/config/
+
+  logstash:
+    build: logstash/
+    labels:
+      role: admin
+      io.rancher.scheduler.affinity:host_label: role=admin
+    ports:
+      - "5044"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    volumes:
+      - logstash-config:/opt/logstash/config/
+      - logstash-pipeline:/opt/logstash/pipeline/
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    build: kibana/
+    labels:
+      role: admin
+      io.rancher.scheduler.affinity:host_label: role=admin
+    ports:
+      - "5601"
+    volumes:
+      - kibana-config:/usr/share/config/
+    depends_on:
+      - elasticsearch
+
+  elastalert:
+    build: elastalert/
+    labels:
+      role: admin
+      io.rancher.scheduler.affinity:host_label: role=admin
+    environment:
+      ELASTICSEARCH_HOST: "elasticsearch"
+    volumes:
+      - elastalert-rules:/opt/rules/
+      - elastalert-config:/opt/config/
+    depends_on:
+      - elasticsearch
+      - mail
+
+  mail:
+    image: catatnight/postfix
+    labels:
+      role: admin
+      io.rancher.scheduler.affinity:host_label: role=admin
+    environment:
+      maildomain: "your.domain.here"
+      smtp_user: "user:password"
+
+volumes:
+  kibana-config:
+    driver: rancher-nfs
+    external: true
+  elastalert-rules:
+    driver: rancher-nfs
+    external: true
+  elastalert-config:
+    driver: rancher-nfs
+    external: true
+  es-config:
+    driver: rancher-nfs
+    external: true
+  es-data:
+    driver: rancher-nfs
+    external: true
+  logstash-config:
+    driver: rancher-nfs
+    external: true
+  logstash-pipeline:
+    driver: rancher-nfs
+    external: true
+
